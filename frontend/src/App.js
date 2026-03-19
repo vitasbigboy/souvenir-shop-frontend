@@ -7,7 +7,7 @@ function App() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // ТУТ ГЛАВНОЕ - адрес твоего бека
+    // адрес
     fetch('http://localhost:8000/api/test-user/')
       .then(response => {
         if (!response.ok) {
