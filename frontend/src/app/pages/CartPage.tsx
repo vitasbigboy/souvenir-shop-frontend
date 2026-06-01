@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext';
 import { products } from '../data/products';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
+const API_URL = 'http://127.0.0.1:8000/api';
 const MINIMUM_ORDER = 15000;
 
 export function CartPage() {
@@ -23,6 +24,7 @@ export function CartPage() {
 
   const [companyCard, setCompanyCard] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   const totalPrice = getTotalPrice();
   const meetsMinimum = totalPrice >= MINIMUM_ORDER;
@@ -32,7 +34,7 @@ export function CartPage() {
     return !product?.inStock;
   });
 
-  const canSubmit = meetsMinimum && !hasOutOfStockItems && formData.consent;
+  const canSubmit = meetsMinimum && !hasOutOfStockItems && formData.consent && !isSending;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -40,13 +42,55 @@ export function CartPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!canSubmit) return;
 
-    console.log('Заявка отправлена:', { items, formData, companyCard });
-    setSubmitted(true);
-    clearCart();
+    try {
+      setIsSending(true);
+
+      const payload = {
+        full_name: formData.fullName,
+        city: formData.city,
+        phone: formData.phone,
+        email: formData.email,
+        comment: formData.comment,
+        company_name: formData.companyName,
+        inn: formData.inn,
+        items: items.map((item) => ({
+          product_id: Number(item.productId),
+          quantity: item.quantity,
+          color: '',
+          branding_selected: item.addLogo,
+        })),
+      };
+
+      const response = await fetch(`${API_URL}/orders/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Ошибка заявки:', data);
+        alert('Ошибка отправки заявки. Проверьте сумму заказа и наличие товаров.');
+        return;
+      }
+
+      console.log('Заявка создана в Django:', data);
+      setSubmitted(true);
+      clearCart();
+    } catch (error) {
+      console.error('Ошибка соединения с backend:', error);
+      alert('Не удалось отправить заявку. Проверьте, запущен ли backend.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   if (submitted) {
@@ -336,7 +380,7 @@ export function CartPage() {
                 disabled={!canSubmit}
                 className="w-full bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-900 font-semibold py-3 rounded-lg transition-colors"
               >
-                Отправить заявку
+                {isSending ? 'Отправка...' : 'Отправить заявку'}
               </button>
 
               {!canSubmit && (

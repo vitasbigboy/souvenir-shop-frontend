@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Search, ArrowUpDown } from 'lucide-react';
 import { FilterPanel } from '../components/FilterPanel';
-import { products, categories } from '../data/products';
+import { products as localProducts, categories as localCategories } from '../data/products';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { useCart } from '../context/CartContext';
 
+const API_URL = 'http://127.0.0.1:8000/api';
+
 export function CatalogPage() {
   const { addToCart } = useCart();
+  const [backendProducts, setBackendProducts] = useState<typeof localProducts>(localProducts);
+  const [backendCategories, setBackendCategories] = useState<string[]>(localCategories);
+  const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Все категории');
@@ -16,7 +21,60 @@ export function CatalogPage() {
   const [showBrandingOnly, setShowBrandingOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'popular'>('popular');
 
-  const filteredProducts = products
+  useEffect(() => {
+  async function loadProducts() {
+    try {
+      const [productsResponse, categoriesResponse] = await Promise.all([
+        fetch(`${API_URL}/products/`),
+        fetch(`${API_URL}/categories/`),
+      ]);
+
+      const productsData = await productsResponse.json();
+      const categoriesData = await categoriesResponse.json();
+
+      const mappedProducts = productsData.map((product: any) => ({
+        id: String(product.id),
+        name: product.name,
+        article: product.article,
+        price: Number(product.price),
+        image: product.image,
+        description: product.description,
+        characteristics: [
+          { name: 'Материал', value: product.material || 'Не указано' },
+          { name: 'Цвет', value: product.color || 'Не указано' },
+          { name: 'Срок поставки', value: product.delivery_time || 'Не указано' },
+        ],
+        tags: [],
+        gallery: [product.image],
+        colors: product.color
+          ? [{ name: product.color, hex: '#cccccc' }]
+          : [],
+        inStock: product.in_stock,
+        stockQuantity: product.stock_quantity,
+        deliveryTime: product.delivery_time,
+        brandingAvailable: product.branding_available,
+        brandingTypes: product.branding_types || [],
+        category: product.category?.name || 'Без категории',
+      }));
+
+      setBackendProducts(mappedProducts);
+      setBackendCategories([
+        'Все категории',
+        ...categoriesData.map((category: any) => category.name),
+      ]);
+    } catch (error) {
+      console.error('Ошибка загрузки товаров с backend:', error);
+      setBackendProducts(localProducts);
+      setBackendCategories(localCategories);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadProducts();
+}, []);
+
+  const filteredProducts = backendProducts
     .filter((product) => {
       if (searchQuery && !product.name.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
@@ -41,7 +99,7 @@ export function CatalogPage() {
       return 0;
     });
 
-  const handleQuickAdd = (product: typeof products[0]) => {
+  const handleQuickAdd = (product: typeof localProducts[0]) => {
     addToCart(
       {
         id: product.id,
@@ -53,6 +111,14 @@ export function CatalogPage() {
       false
     );
   };
+
+  if (loading) {
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <p className="text-gray-600">Загрузка каталога...</p>
+    </div>
+  );
+}
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -86,7 +152,7 @@ export function CatalogPage() {
       <div className="grid lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1">
           <FilterPanel
-            categories={categories}
+            categories={backendCategories}
             selectedCategory={selectedCategory}
             onCategoryChange={setSelectedCategory}
             priceRange={priceRange}
