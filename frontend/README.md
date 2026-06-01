@@ -1,11 +1,15 @@
+# Souvenir Shop Frontend
 
-  # E-commerce website design
+Фронтенд интернет-магазина корпоративных сувениров.
 
-  This is a code bundle for E-commerce website design. The original project is available at https://www.figma.com/design/HREuGYVmFJfgJ16Q0sYYIk/E-commerce-website-design.
+## Технологии
 
-  ## Running the code
+- React
+- TypeScript
+- Vite
 
-  Run `npm i` to install the dependencies.
+## Запуск проекта
 
-  Run `npm run dev` to start the development server.
-  
+```bash
+npm install
+npm run dev
