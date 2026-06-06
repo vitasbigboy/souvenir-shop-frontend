@@ -1,22 +1,99 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { Minus, Plus, AlertCircle, Package, Truck, CheckCircle } from 'lucide-react';
-import { products } from '../data/products';
 import { useCart } from '../context/CartContext';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+
+const API_URL = 'http://127.0.0.1:8000/api';
+
+type Product = {
+  id: string;
+  name: string;
+  article: string;
+  price: number;
+  image: string;
+  description: string;
+  characteristics: { name: string; value: string }[];
+  tags: string[];
+  gallery: string[];
+  colors?: { name: string; hex: string }[];
+  inStock: boolean;
+  stockQuantity: number;
+  deliveryTime: string;
+  brandingAvailable: boolean;
+  brandingTypes: string[];
+  category: string;
+};
 
 export function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
-  const product = products.find((p) => p.id === id);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [addBranding, setAddBranding] = useState(false);
   const [selectedBrandingType, setSelectedBrandingType] = useState<string>('');
+
+  useEffect(() => {
+    async function loadProduct() {
+      try {
+        setLoading(true);
+
+        const response = await fetch(`${API_URL}/products/${id}/`);
+
+        if (!response.ok) {
+          throw new Error('Товар не найден');
+        }
+
+        const data = await response.json();
+
+        const mappedProduct: Product = {
+          id: String(data.id),
+          name: data.name,
+          article: data.article,
+          price: Number(data.price),
+          image: data.image,
+          description: data.description,
+          characteristics: data.characteristics || [],
+          tags: data.tags || [],
+          gallery: data.gallery && data.gallery.length > 0 ? data.gallery : [data.image],
+          colors: data.colors || [],
+          inStock: data.in_stock,
+          stockQuantity: data.stock_quantity,
+          deliveryTime: data.delivery_time,
+          brandingAvailable: data.branding_available,
+          brandingTypes: data.branding_types || [],
+          category: data.category?.name || 'Без категории',
+        };
+
+        setProduct(mappedProduct);
+        setSelectedImage(0);
+        setSelectedColor(null);
+        setAddBranding(false);
+        setSelectedBrandingType('');
+      } catch (error) {
+        console.error('Ошибка загрузки товара:', error);
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+        <p className="text-gray-600">Загрузка товара...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -54,7 +131,7 @@ export function ProductPage() {
         <div>
           <div className="bg-gray-100 rounded-xl overflow-hidden mb-4 aspect-square relative">
             <ImageWithFallback
-              src={product.gallery[selectedImage]}
+              src={product.gallery[selectedImage] || product.image}
               alt={product.name}
               className="w-full h-full object-cover"
             />
@@ -66,23 +143,26 @@ export function ProductPage() {
               </div>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            {product.gallery.map((img, idx) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedImage(idx)}
-                className={`bg-gray-100 rounded-lg overflow-hidden aspect-square ${
-                  selectedImage === idx ? 'ring-2 ring-yellow-400' : ''
-                }`}
-              >
-                <ImageWithFallback
-                  src={img}
-                  alt={`${product.name} ${idx + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              </button>
-            ))}
-          </div>
+
+          {product.gallery.length > 1 && (
+            <div className="grid grid-cols-3 gap-4">
+              {product.gallery.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedImage(idx)}
+                  className={`bg-gray-100 rounded-lg overflow-hidden aspect-square ${
+                    selectedImage === idx ? 'ring-2 ring-yellow-400' : ''
+                  }`}
+                >
+                  <ImageWithFallback
+                    src={img}
+                    alt={`${product.name} ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
@@ -125,17 +205,19 @@ export function ProductPage() {
             <p className="text-gray-600">{product.description}</p>
           </div>
 
-          <div className="mb-6">
-            <h2 className="font-semibold text-lg mb-2">Характеристики</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {product.characteristics.map((char, idx) => (
-                <div key={idx} className="text-sm">
-                  <span className="text-gray-500">{char.name}:</span>
-                  <span className="text-gray-900 ml-2 font-medium">{char.value}</span>
-                </div>
-              ))}
+          {product.characteristics.length > 0 && (
+            <div className="mb-6">
+              <h2 className="font-semibold text-lg mb-2">Характеристики</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {product.characteristics.map((char, idx) => (
+                  <div key={idx} className="text-sm">
+                    <span className="text-gray-500">{char.name}:</span>
+                    <span className="text-gray-900 ml-2 font-medium">{char.value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {product.colors && product.colors.length > 0 && (
             <div className="mb-6">

@@ -1,14 +1,54 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { ProductCard } from '../components/ProductCard';
 import { ProductSlider } from '../components/ProductSlider';
-import { products } from '../data/products';
+import { products as localProducts } from '../data/products';
 import { Package, ShoppingCart, FileText } from 'lucide-react';
 
+const API_URL = 'http://127.0.0.1:8000/api';
 const allTags = ['С логотипом', 'Для коллег', 'Наборы', 'Для мужчин', 'Новый год'];
 
 export function HomePage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [products, setProducts] = useState(localProducts);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const response = await fetch(`${API_URL}/products/`);
+        const data = await response.json();
+
+        const mappedProducts = data.map((product: any) => ({
+          id: String(product.id),
+          name: product.name,
+          article: product.article,
+          price: Number(product.price),
+          image: product.image,
+          description: product.description,
+          characteristics: product.characteristics || [],
+          tags: product.tags || [],
+          gallery: product.gallery || [product.image],
+          colors: product.colors || [],
+          inStock: product.in_stock,
+          stockQuantity: product.stock_quantity,
+          deliveryTime: product.delivery_time,
+          brandingAvailable: product.branding_available,
+          brandingTypes: product.branding_types || [],
+          category: product.category?.name || 'Без категории',
+        }));
+
+        setProducts(mappedProducts);
+      } catch (error) {
+        console.error('Ошибка загрузки товаров на главной:', error);
+        setProducts(localProducts);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProducts();
+  }, []);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -23,7 +63,10 @@ export function HomePage() {
           selectedTags.some((tag) => product.tags.includes(tag))
         );
 
-  const popularProducts = products.filter((p) => p.inStock).slice(0, 4);
+  const popularProducts = [...products]
+  .sort((a, b) => Number(a.id) - Number(b.id))
+  .filter((p) => p.inStock)
+  .slice(0, 4);
 
   return (
     <div>
@@ -86,22 +129,30 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center mb-12">Популярные товары</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {popularProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                image={product.image}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
+      {loading ? (
+        <section className="py-16">
+          <p className="text-center text-gray-600">Загрузка товаров...</p>
+        </section>
+      ) : (
+        <>
+          <section className="py-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <h2 className="text-3xl font-bold text-center mb-12">Популярные товары</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {popularProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    id={product.id}
+                    name={product.name}
+                    price={product.price}
+                    image={product.image}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
 
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -160,41 +211,6 @@ export function HomePage() {
               <h3 className="font-semibold text-lg mb-2">Быстрое производство</h3>
               <p className="text-gray-600 text-sm">
                 Короткие сроки производства без ущерба для качества
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center mb-12">Как заказать</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="bg-yellow-400 w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-gray-900 mx-auto mb-4">
-                1
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Выберите товары</h3>
-              <p className="text-gray-600 text-sm">
-                Просмотрите наш каталог и выберите товары, которые соответствуют вашим потребностям
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="bg-yellow-400 w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-gray-900 mx-auto mb-4">
-                2
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Добавьте в корзину</h3>
-              <p className="text-gray-600 text-sm">
-                Добавьте товары в корзину и укажите количество и опции брендирования
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="bg-yellow-400 w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-gray-900 mx-auto mb-4">
-                3
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Оставьте заявку</h3>
-              <p className="text-gray-600 text-sm">
-                Заполните форму заявки, и наш менеджер свяжется с вами в ближайшее время
               </p>
             </div>
           </div>
