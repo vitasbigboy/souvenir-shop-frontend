@@ -6,7 +6,7 @@ import { products as localProducts, categories as localCategories } from '../dat
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { useCart } from '../context/CartContext';
 
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 export function CatalogPage() {
   const { addToCart } = useCart();

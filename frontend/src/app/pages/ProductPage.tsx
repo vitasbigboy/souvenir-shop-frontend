@@ -4,7 +4,7 @@ import { Minus, Plus, AlertCircle, Package, Truck, CheckCircle } from 'lucide-re
 import { useCart } from '../context/CartContext';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 type Product = {
   id: string;

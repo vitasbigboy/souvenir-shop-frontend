@@ -5,7 +5,7 @@ import { ProductSlider } from '../components/ProductSlider';
 import { products as localProducts } from '../data/products';
 import { Package, ShoppingCart, FileText } from 'lucide-react';
 
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 const allTags = ['С логотипом', 'Для коллег', 'Наборы', 'Для мужчин', 'Новый год'];
 
 export function HomePage() {

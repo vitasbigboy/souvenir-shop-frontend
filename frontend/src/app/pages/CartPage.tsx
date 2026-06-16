@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext';
 import { products } from '../data/products';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 const MINIMUM_ORDER = 15000;
 
 export function CartPage() {
