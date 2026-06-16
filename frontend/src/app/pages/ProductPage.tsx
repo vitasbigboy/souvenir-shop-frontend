@@ -32,7 +32,7 @@ type BackendProduct = {
   article?: string;
   description?: string;
   price?: string | number;
-  images?: string[];
+  images?: (string | { imageId?: string | number; imageURL?: string; isPrimary?: boolean })[];
   imageURL?: string;
   image?: string;
   gallery?: string[];
@@ -48,11 +48,29 @@ type BackendProduct = {
   branding_types?: string[];
 };
 
+type ApiResponse<T> = {
+  success?: boolean;
+  data?: T;
+};
+
+function getApiData<T>(json: ApiResponse<T> | T): T {
+  return 'data' in Object(json) ? (json as ApiResponse<T>).data ?? (json as T) : (json as T);
+}
+
+function normalizeImages(images?: BackendProduct['images']): string[] {
+  if (!images) return [];
+
+  return images
+    .map((image) => (typeof image === 'string' ? image : image.imageURL))
+    .filter((image): image is string => Boolean(image));
+}
+
 function mapProduct(data: BackendProduct): Product {
   const productId = data.productId ?? data.id;
-  const image = data.imageURL || data.image || data.images?.[0] || '';
-  const gallery = data.images && data.images.length > 0
-    ? data.images
+  const images = normalizeImages(data.images);
+  const image = data.imageURL || data.image || images[0] || '';
+  const gallery = images.length > 0
+    ? images
     : data.gallery && data.gallery.length > 0
     ? data.gallery
     : image
@@ -107,13 +125,15 @@ export function ProductPage() {
         let data: BackendProduct | BackendProduct[] | null = null;
 
         if (response.ok) {
-          data = await response.json();
+          const json = await response.json();
+          data = getApiData<BackendProduct | BackendProduct[]>(json);
         } else {
           const listResponse = await fetch(`${API_URL}/products/`);
           if (!listResponse.ok) {
             throw new Error('Товар не найден');
           }
-          data = await listResponse.json();
+          const json = await listResponse.json();
+          data = getApiData<BackendProduct | BackendProduct[]>(json);
         }
 
         const productData = Array.isArray(data)

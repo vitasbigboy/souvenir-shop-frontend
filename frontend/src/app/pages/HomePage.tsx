@@ -8,6 +8,20 @@ import { Package, ShoppingCart, FileText } from 'lucide-react';
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 const allTags = ['С логотипом', 'Для коллег', 'Наборы', 'Для мужчин', 'Новый год'];
 
+type BackendImage = string | { imageId?: string | number; imageURL?: string; isPrimary?: boolean };
+
+function getApiData<T>(json: { data?: T } | T): T {
+  return 'data' in Object(json) ? (json as { data?: T }).data ?? (json as T) : (json as T);
+}
+
+function normalizeImages(images?: BackendImage[]): string[] {
+  if (!images) return [];
+
+  return images
+    .map((image) => (typeof image === 'string' ? image : image.imageURL))
+    .filter((image): image is string => Boolean(image));
+}
+
 export function HomePage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [products, setProducts] = useState(localProducts);
@@ -17,20 +31,23 @@ export function HomePage() {
     async function loadProducts() {
       try {
         const response = await fetch(`${API_URL}/products/`);
-        const data = await response.json();
+        const json = await response.json();
+        const data = getApiData<any[]>(json);
 
-        const mappedProducts = data.map((product: any) => ({
+        const mappedProducts = data.map((product: any) => {
+          const images = normalizeImages(product.images);
+          const image = product.imageURL || product.image || images[0] || '';
+
+          return {
           id: String(product.productId ?? product.id),
           name: product.name,
           article: product.article || String(product.productId ?? product.id),
           price: Number(product.price),
-          image: product.imageURL || product.image || product.images?.[0] || '',
+          image,
           description: product.description,
           characteristics: product.characteristics || [],
           tags: product.tags || [],
-          gallery: product.images && product.images.length > 0
-            ? product.images
-            : product.gallery || [product.imageURL || product.image || ''],
+          gallery: images.length > 0 ? images : product.gallery || [image],
           colors: product.colors || [],
           inStock: product.in_stock ?? Number(product.stock ?? product.stock_quantity ?? 0) > 0,
           stockQuantity: Number(product.stock ?? product.stock_quantity ?? 0),
@@ -38,7 +55,8 @@ export function HomePage() {
           brandingAvailable: product.branding_available,
           brandingTypes: product.branding_types || [],
           category: typeof product.category === 'string' ? product.category : product.category?.name || 'Без категории',
-        }));
+          };
+        });
 
         setProducts(mappedProducts);
       } catch (error) {

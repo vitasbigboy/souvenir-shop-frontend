@@ -8,6 +8,20 @@ import { useCart } from '../context/CartContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
+type BackendImage = string | { imageId?: string | number; imageURL?: string; isPrimary?: boolean };
+
+function getApiData<T>(json: { data?: T } | T): T {
+  return 'data' in Object(json) ? (json as { data?: T }).data ?? (json as T) : (json as T);
+}
+
+function normalizeImages(images?: BackendImage[]): string[] {
+  if (!images) return [];
+
+  return images
+    .map((image) => (typeof image === 'string' ? image : image.imageURL))
+    .filter((image): image is string => Boolean(image));
+}
+
 export function CatalogPage() {
   const { addToCart } = useCart();
   const [backendProducts, setBackendProducts] = useState<typeof localProducts>(localProducts);
@@ -29,15 +43,21 @@ export function CatalogPage() {
         fetch(`${API_URL}/categories/`),
       ]);
 
-      const productsData = await productsResponse.json();
-      const categoriesData = await categoriesResponse.json();
+      const productsJson = await productsResponse.json();
+      const categoriesJson = await categoriesResponse.json();
+      const productsData = getApiData<any[]>(productsJson);
+      const categoriesData = getApiData<any[]>(categoriesJson);
 
-      const mappedProducts = productsData.map((product: any) => ({
+      const mappedProducts = productsData.map((product: any) => {
+        const images = normalizeImages(product.images);
+        const image = product.imageURL || product.image || images[0] || '';
+
+        return {
         id: String(product.productId ?? product.id),
         name: product.name,
         article: product.article || String(product.productId ?? product.id),
         price: Number(product.price),
-        image: product.imageURL || product.image || product.images?.[0] || '',
+        image,
         description: product.description,
         characteristics: [
           { name: 'Материал', value: product.material || 'Не указано' },
@@ -45,7 +65,7 @@ export function CatalogPage() {
           { name: 'Срок поставки', value: product.delivery_time || 'Не указано' },
         ],
         tags: [],
-        gallery: product.images && product.images.length > 0 ? product.images : [product.imageURL || product.image || ''],
+        gallery: images.length > 0 ? images : [image],
         colors: product.color
           ? [{ name: product.color, hex: '#cccccc' }]
           : [],
@@ -55,12 +75,15 @@ export function CatalogPage() {
         brandingAvailable: product.branding_available,
         brandingTypes: product.branding_types || [],
         category: typeof product.category === 'string' ? product.category : product.category?.name || 'Без категории',
-      }));
+        };
+      });
 
       setBackendProducts(mappedProducts);
       setBackendCategories([
         'Все категории',
-        ...categoriesData.map((category: any) => category.name),
+        ...categoriesData.map((category: any) => (
+          typeof category === 'string' ? category : category.name
+        )),
       ]);
     } catch (error) {
       console.error('Ошибка загрузки товаров с backend:', error);
