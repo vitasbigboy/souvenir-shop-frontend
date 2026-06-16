@@ -25,8 +25,63 @@ type Product = {
   category: string;
 };
 
+type BackendProduct = {
+  productId?: string | number;
+  id?: string | number;
+  name?: string;
+  article?: string;
+  description?: string;
+  price?: string | number;
+  images?: string[];
+  imageURL?: string;
+  image?: string;
+  gallery?: string[];
+  category?: string | { name?: string };
+  stock?: number;
+  in_stock?: boolean;
+  stock_quantity?: number;
+  delivery_time?: string;
+  characteristics?: { name: string; value: string }[];
+  tags?: string[];
+  colors?: { name: string; hex: string }[];
+  branding_available?: boolean;
+  branding_types?: string[];
+};
+
+function mapProduct(data: BackendProduct): Product {
+  const productId = data.productId ?? data.id;
+  const image = data.imageURL || data.image || data.images?.[0] || '';
+  const gallery = data.images && data.images.length > 0
+    ? data.images
+    : data.gallery && data.gallery.length > 0
+    ? data.gallery
+    : image
+    ? [image]
+    : [];
+  const stockQuantity = Number(data.stock ?? data.stock_quantity ?? 0);
+
+  return {
+    id: String(productId),
+    name: data.name || '',
+    article: data.article || String(productId),
+    price: Number(data.price ?? 0),
+    image,
+    description: data.description || '',
+    characteristics: data.characteristics || [],
+    tags: data.tags || [],
+    gallery,
+    colors: data.colors || [],
+    inStock: data.in_stock ?? stockQuantity > 0,
+    stockQuantity,
+    deliveryTime: data.delivery_time || 'Не указано',
+    brandingAvailable: data.branding_available ?? false,
+    brandingTypes: data.branding_types || [],
+    category: typeof data.category === 'string' ? data.category : data.category?.name || 'Без категории',
+  };
+}
+
 export function ProductPage() {
-  const { id } = useParams();
+  const { id: productId } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
@@ -44,32 +99,32 @@ export function ProductPage() {
       try {
         setLoading(true);
 
-        const response = await fetch(`${API_URL}/products/${id}/`);
+        if (!productId) {
+          throw new Error('Не указан productId');
+        }
 
-        if (!response.ok) {
+        const response = await fetch(`${API_URL}/products/${productId}/`);
+        let data: BackendProduct | BackendProduct[] | null = null;
+
+        if (response.ok) {
+          data = await response.json();
+        } else {
+          const listResponse = await fetch(`${API_URL}/products/`);
+          if (!listResponse.ok) {
+            throw new Error('Товар не найден');
+          }
+          data = await listResponse.json();
+        }
+
+        const productData = Array.isArray(data)
+          ? data.find((product) => String(product.productId ?? product.id) === String(productId))
+          : data;
+
+        if (!productData) {
           throw new Error('Товар не найден');
         }
 
-        const data = await response.json();
-
-        const mappedProduct: Product = {
-          id: String(data.id),
-          name: data.name,
-          article: data.article,
-          price: Number(data.price),
-          image: data.image,
-          description: data.description,
-          characteristics: data.characteristics || [],
-          tags: data.tags || [],
-          gallery: data.gallery && data.gallery.length > 0 ? data.gallery : [data.image],
-          colors: data.colors || [],
-          inStock: data.in_stock,
-          stockQuantity: data.stock_quantity,
-          deliveryTime: data.delivery_time,
-          brandingAvailable: data.branding_available,
-          brandingTypes: data.branding_types || [],
-          category: data.category?.name || 'Без категории',
-        };
+        const mappedProduct = mapProduct(productData);
 
         setProduct(mappedProduct);
         setSelectedImage(0);
@@ -85,7 +140,7 @@ export function ProductPage() {
     }
 
     loadProduct();
-  }, [id]);
+  }, [productId]);
 
   if (loading) {
     return (

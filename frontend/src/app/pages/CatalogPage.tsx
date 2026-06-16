@@ -33,11 +33,11 @@ export function CatalogPage() {
       const categoriesData = await categoriesResponse.json();
 
       const mappedProducts = productsData.map((product: any) => ({
-        id: String(product.id),
+        id: String(product.productId ?? product.id),
         name: product.name,
-        article: product.article,
+        article: product.article || String(product.productId ?? product.id),
         price: Number(product.price),
-        image: product.image,
+        image: product.imageURL || product.image || product.images?.[0] || '',
         description: product.description,
         characteristics: [
           { name: 'Материал', value: product.material || 'Не указано' },
@@ -45,16 +45,16 @@ export function CatalogPage() {
           { name: 'Срок поставки', value: product.delivery_time || 'Не указано' },
         ],
         tags: [],
-        gallery: [product.image],
+        gallery: product.images && product.images.length > 0 ? product.images : [product.imageURL || product.image || ''],
         colors: product.color
           ? [{ name: product.color, hex: '#cccccc' }]
           : [],
-        inStock: product.in_stock,
-        stockQuantity: product.stock_quantity,
-        deliveryTime: product.delivery_time,
+        inStock: product.in_stock ?? Number(product.stock ?? product.stock_quantity ?? 0) > 0,
+        stockQuantity: Number(product.stock ?? product.stock_quantity ?? 0),
+        deliveryTime: product.delivery_time || 'Не указано',
         brandingAvailable: product.branding_available,
         brandingTypes: product.branding_types || [],
-        category: product.category?.name || 'Без категории',
+        category: typeof product.category === 'string' ? product.category : product.category?.name || 'Без категории',
       }));
 
       setBackendProducts(mappedProducts);
