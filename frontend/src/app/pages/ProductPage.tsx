@@ -98,11 +98,23 @@ function mapProduct(data: BackendProduct): Product {
   };
 }
 
+function findProduct(data: BackendProduct | BackendProduct[] | null, productId: string) {
+  if (!data) return null;
+
+  return Array.isArray(data)
+    ? data.find((product) => String(product.productId ?? product.id) === String(productId)) ?? null
+    : data;
+}
+
 export function ProductPage() {
   const params = useParams<{ id?: string; productId?: string }>();
-  const productId = params.id ?? params.productId;
+  const pathProductId = window.location.pathname.split('/').filter(Boolean).at(-1);
+  const productId = params.id ?? params.productId ?? pathProductId;
   const navigate = useNavigate();
   const { addToCart } = useCart();
+
+  console.log('ProductPage productId:', productId);
+  console.log('ProductPage API_URL:', API_URL);
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,24 +134,29 @@ export function ProductPage() {
           throw new Error('Не указан productId');
         }
 
-        const response = await fetch(`${API_URL}/products/${productId}/`);
-        let data: BackendProduct | BackendProduct[] | null = null;
+        let productData: BackendProduct | null = null;
 
-        if (response.ok) {
-          const json = await response.json();
-          data = getApiData<BackendProduct | BackendProduct[]>(json);
-        } else {
+        try {
+          const response = await fetch(`${API_URL}/products/${productId}/`);
+
+          if (response.ok) {
+            const json = await response.json();
+            const data = getApiData<BackendProduct | BackendProduct[]>(json);
+            productData = findProduct(data, productId);
+          }
+        } catch (error) {
+          console.error('Ошибка detail-запроса товара:', error);
+        }
+
+        if (!productData) {
           const listResponse = await fetch(`${API_URL}/products/`);
           if (!listResponse.ok) {
             throw new Error('Товар не найден');
           }
           const json = await listResponse.json();
-          data = getApiData<BackendProduct | BackendProduct[]>(json);
+          const data = getApiData<BackendProduct | BackendProduct[]>(json);
+          productData = findProduct(data, productId);
         }
-
-        const productData = Array.isArray(data)
-          ? data.find((product) => String(product.productId ?? product.id) === String(productId))
-          : data;
 
         if (!productData) {
           throw new Error('Товар не найден');
