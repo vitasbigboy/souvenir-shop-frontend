@@ -99,7 +99,7 @@ function mapProduct(data: BackendProduct): Product {
 }
 
 export function ProductPage() {
-  const params = useParams();
+  const params = useParams<{ id?: string; productId?: string }>();
   const productId = params.id ?? params.productId;
   const navigate = useNavigate();
   const { addToCart } = useCart();
