@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import { Minus, Plus, AlertCircle, Package, Truck, CheckCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { products as localProducts } from '../data/products';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
@@ -106,6 +107,10 @@ function findProduct(data: BackendProduct | BackendProduct[] | null, productId: 
     : data;
 }
 
+function findLocalProduct(productId: string): Product | null {
+  return localProducts.find((product) => String(product.id) === String(productId)) ?? null;
+}
+
 export function ProductPage() {
   const params = useParams<{ id?: string; productId?: string }>();
   const pathProductId = window.location.pathname.split('/').filter(Boolean).at(-1);
@@ -148,21 +153,24 @@ export function ProductPage() {
           console.error('Ошибка detail-запроса товара:', error);
         }
 
-        if (!productData) {
-          const listResponse = await fetch(`${API_URL}/products/`);
-          if (!listResponse.ok) {
-            throw new Error('Товар не найден');
+        try {
+          if (!productData) {
+            const listResponse = await fetch(`${API_URL}/products/`);
+            if (listResponse.ok) {
+              const json = await listResponse.json();
+              const data = getApiData<BackendProduct | BackendProduct[]>(json);
+              productData = findProduct(data, productId);
+            }
           }
-          const json = await listResponse.json();
-          const data = getApiData<BackendProduct | BackendProduct[]>(json);
-          productData = findProduct(data, productId);
+        } catch (error) {
+          console.error('Ошибка fallback-запроса списка товаров:', error);
         }
 
-        if (!productData) {
+        const mappedProduct = productData ? mapProduct(productData) : findLocalProduct(productId);
+
+        if (!mappedProduct) {
           throw new Error('Товар не найден');
         }
-
-        const mappedProduct = mapProduct(productData);
 
         setProduct(mappedProduct);
         setSelectedImage(0);
